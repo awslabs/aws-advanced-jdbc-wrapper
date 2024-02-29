@@ -19,6 +19,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent.*
 
 plugins {
     java
+    id("org.checkerframework") version "0.6.34"
 }
 
 repositories {
@@ -35,7 +36,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.8.0")
-    testImplementation("org.postgresql:postgresql:42.5.0")
+    testImplementation("org.postgresql:postgresql:42.7.1")
     testImplementation("mysql:mysql-connector-java:8.0.30")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.1.0")
     testImplementation("com.zaxxer:HikariCP:4.+") // version 4.+ is compatible with Java 8
