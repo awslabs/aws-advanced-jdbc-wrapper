@@ -293,6 +293,7 @@ tasks.register<Test>("test-all-docker") {
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-performance", "true")
     }
 }
@@ -302,6 +303,7 @@ tasks.register<Test>("test-hibernate-only") {
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-mariadb-driver", "true")
         systemProperty("test-no-mariadb-engine", "true")
@@ -363,6 +365,7 @@ tasks.register<Test>("debug-all-docker") {
     filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-performance", "true")
     }
 }
@@ -381,6 +384,7 @@ tasks.register<Test>("debug-hibernate-only") {
     filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-mariadb-driver", "true")
         systemProperty("test-no-mariadb-engine", "true")
@@ -395,6 +399,7 @@ tasks.register<Test>("test-all-aurora-performance") {
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -411,6 +416,7 @@ tasks.register<Test>("test-aurora-pg-performance") {
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -431,6 +437,7 @@ tasks.register<Test>("debug-aurora-pg-performance") {
     filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-docker", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -451,6 +458,7 @@ tasks.register<Test>("test-aurora-mysql-performance") {
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -471,6 +479,7 @@ tasks.register<Test>("debug-aurora-mysql-performance") {
     filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-docker", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -491,6 +500,7 @@ tasks.register<Test>("test-aurora-pg-advanced-performance") {
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")
@@ -511,6 +521,7 @@ tasks.register<Test>("test-aurora-mysql-advanced-performance") {
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-iam", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-secrets-manager", "true")

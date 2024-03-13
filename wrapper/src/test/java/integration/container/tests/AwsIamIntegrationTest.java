@@ -262,14 +262,14 @@ public class AwsIamIntegrationTest {
 
     final String regularToken = new RegularRdsUtility().generateAuthenticationToken(
         credentialsProvider,
-        Region.of(TestEnvironment.getCurrent().getInfo().getAuroraRegion()),
+        Region.of(TestEnvironment.getCurrent().getInfo().getRegion()),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getIamUsername());
 
     final String lightToken = new LightRdsUtility().generateAuthenticationToken(
         credentialsProvider,
-        Region.of(TestEnvironment.getCurrent().getInfo().getAuroraRegion()),
+        Region.of(TestEnvironment.getCurrent().getInfo().getRegion()),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getIamUsername());

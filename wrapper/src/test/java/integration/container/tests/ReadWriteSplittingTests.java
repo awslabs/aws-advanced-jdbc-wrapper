@@ -87,7 +87,7 @@ import software.amazon.jdbc.util.SqlState;
 public class ReadWriteSplittingTests {
 
   protected static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getRegion());
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
 
   protected static Properties getProxiedPropsWithFailover() {

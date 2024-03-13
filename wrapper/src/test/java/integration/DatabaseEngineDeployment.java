@@ -19,5 +19,6 @@ package integration;
 public enum DatabaseEngineDeployment {
   DOCKER,
   RDS,
+  RDS_MULTI_AZ,
   AURORA
 }

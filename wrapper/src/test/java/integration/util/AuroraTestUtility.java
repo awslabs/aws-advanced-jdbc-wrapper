@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestDatabaseInfo;
 import integration.TestEnvironmentInfo;
@@ -53,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -97,9 +99,13 @@ public class AuroraTestUtility {
   private String dbPassword = "my_test_password";
   private String dbName = "test";
   private String dbIdentifier = "test-identifier";
+  private DatabaseEngineDeployment dbEngineDeployment;
   private String dbEngine = "aurora-postgresql";
   private String dbEngineVersion = "13.9";
   private String dbInstanceClass = "db.r5.large";
+  private String storageType = "io1";
+  private int allocatedStorage = 100;
+  private int iops = 1000;
   private final Region dbRegion;
   private final String dbSecGroup = "default";
   private int numOfInstances = 5;
@@ -197,22 +203,32 @@ public class AuroraTestUtility {
       String password,
       String dbName,
       String identifier,
+      DatabaseEngineDeployment deployment,
       String engine,
       String instanceClass,
       String version,
       int numOfInstances,
       ArrayList<TestInstanceInfo> instances)
       throws InterruptedException {
-    dbUsername = username;
-    dbPassword = password;
+    this.dbUsername = username;
+    this.dbPassword = password;
     this.dbName = dbName;
-    dbIdentifier = identifier;
-    dbEngine = engine;
-    dbInstanceClass = instanceClass;
-    dbEngineVersion = version;
+    this.dbIdentifier = identifier;
+    this.dbEngineDeployment = deployment;
+    this.dbEngine = engine;
+    this.dbInstanceClass = instanceClass;
+    this.dbEngineVersion = version;
     this.numOfInstances = numOfInstances;
     this.instances = instances;
-    return createCluster();
+
+    switch (this.dbEngineDeployment) {
+      case AURORA:
+        return createAuroraCluster();
+      case RDS_MULTI_AZ:
+        return createMultiAzCluster();
+      default:
+        throw new UnsupportedOperationException(this.dbEngineDeployment.toString());
+    }
   }
 
   /**
@@ -221,7 +237,7 @@ public class AuroraTestUtility {
    * @return An endpoint for one of the instances
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
-  public String createCluster() throws InterruptedException {
+  public String createAuroraCluster() throws InterruptedException {
     // Create Cluster
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
 
@@ -255,6 +271,71 @@ public class AuroraTestUtility {
               .tags(testRunnerTag)
               .build());
     }
+
+    // Wait for all instances to be up
+    final RdsWaiter waiter = rdsClient.waiter();
+    WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
+        waiter.waitUntilDBInstanceAvailable(
+            (requestBuilder) ->
+                requestBuilder.filters(
+                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()),
+            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
+
+    if (waiterResponse.matched().exception().isPresent()) {
+      deleteCluster();
+      throw new InterruptedException(
+          "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
+    }
+
+    final DescribeDbInstancesResponse dbInstancesResult =
+        rdsClient.describeDBInstances(
+            (builder) ->
+                builder.filters(
+                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()));
+    final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
+    final String clusterDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
+
+    for (DBInstance instance : dbInstancesResult.dbInstances()) {
+      this.instances.add(
+          new TestInstanceInfo(
+              instance.dbInstanceIdentifier(),
+              instance.endpoint().address(),
+              instance.endpoint().port()));
+    }
+
+    return clusterDomainPrefix;
+  }
+
+  /**
+   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
+   *
+   * @return An endpoint for one of the instances
+   * @throws InterruptedException when clusters have not started after 30 minutes
+   */
+  public String createMultiAzCluster() throws InterruptedException {
+    // Create Cluster
+    final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
+    CreateDbClusterRequest.Builder clusterBuilder =
+        CreateDbClusterRequest.builder()
+            .dbClusterIdentifier(dbIdentifier)
+            .databaseName(dbName)
+            .masterUsername(dbUsername)
+            .masterUserPassword(dbPassword)
+            .sourceRegion(dbRegion.id())
+            .engine(dbEngine)
+            .engineVersion(dbEngineVersion)
+            .storageEncrypted(true)
+            .tags(testRunnerTag);
+
+    clusterBuilder =
+        clusterBuilder.allocatedStorage(allocatedStorage)
+            .dbClusterInstanceClass(dbInstanceClass)
+            .storageType(storageType)
+            .iops(iops);
+
+    rdsClient.createDBCluster(clusterBuilder.build());
+
+    // For multi-AZ deployments, the cluster instances are created automatically.
 
     // Wait for all instances to be up
     final RdsWaiter waiter = rdsClient.waiter();
@@ -471,8 +552,26 @@ public class AuroraTestUtility {
 
   /**
    * Destroys all instances and clusters. Removes IP from EC2 whitelist.
+   *
    */
   public void deleteCluster() {
+
+    switch (this.dbEngineDeployment) {
+      case AURORA:
+        this.deleteAuroraCluster();
+        break;
+      case RDS_MULTI_AZ:
+        this.deleteMultiAzCluster();
+        break;
+      default:
+        throw new UnsupportedOperationException(this.dbEngineDeployment.toString());
+    }
+  }
+
+  /**
+   * Destroys all instances and clusters. Removes IP from EC2 whitelist.
+   */
+  public void deleteAuroraCluster() {
     // Tear down instances
     for (int i = 1; i <= numOfInstances; i++) {
       try {
@@ -487,6 +586,30 @@ public class AuroraTestUtility {
       }
     }
 
+    // Tear down cluster
+    int remainingAttempts = 5;
+    while (--remainingAttempts > 0) {
+      try {
+        DeleteDbClusterResponse response = rdsClient.deleteDBCluster(
+            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(dbIdentifier)));
+        if (response.sdkHttpResponse().isSuccessful()) {
+          break;
+        }
+        TimeUnit.SECONDS.sleep(30);
+
+      } catch (DbClusterNotFoundException ex) {
+        // ignore
+      } catch (Exception ex) {
+        LOGGER.warning("Error deleting db cluster " + dbIdentifier + ": " + ex);
+      }
+    }
+  }
+
+  /**
+   * Destroys all instances and clusters.
+   */
+  public void deleteMultiAzCluster() {
+    // deleteDBinstance requests are not necessary to delete a multi-az cluster.
     // Tear down cluster
     int remainingAttempts = 5;
     while (--remainingAttempts > 0) {
@@ -531,8 +654,10 @@ public class AuroraTestUtility {
   public DatabaseEngine getClusterEngine(final DBCluster cluster) {
     switch (cluster.engine()) {
       case "aurora-postgresql":
+      case "postgres":
         return DatabaseEngine.PG;
       case "aurora-mysql":
+      case "mysql":
         return DatabaseEngine.MYSQL;
       default:
         throw new UnsupportedOperationException(cluster.engine());
@@ -574,29 +699,55 @@ public class AuroraTestUtility {
   public List<String> getAuroraInstanceIds() throws SQLException {
     return getAuroraInstanceIds(
         TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
         ConnectionStringHelper.getUrl(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
   }
 
   public List<String> getAuroraInstanceIds(
-      DatabaseEngine databaseEngine, String connectionUrl, String userName, String password)
+      DatabaseEngine databaseEngine,
+      DatabaseEngineDeployment deployment,
+      String connectionUrl,
+      String userName,
+      String password)
       throws SQLException {
 
     String retrieveTopologySql;
-    switch (databaseEngine) {
-      case MYSQL:
-        retrieveTopologySql =
-            "SELECT SERVER_ID, SESSION_ID FROM information_schema.replica_host_status "
-                + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1)";
+    switch (deployment) {
+      case AURORA:
+        switch (databaseEngine) {
+          case MYSQL:
+            retrieveTopologySql =
+                "SELECT SERVER_ID, SESSION_ID FROM information_schema.replica_host_status "
+                    + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1)";
+            break;
+          case PG:
+            retrieveTopologySql =
+                "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
+                    + "ORDER BY CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
+            break;
+          default:
+            throw new UnsupportedOperationException(databaseEngine.toString());
+        }
         break;
-      case PG:
-        retrieveTopologySql =
-            "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
-                + "ORDER BY CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
+      case RDS_MULTI_AZ:
+        switch (databaseEngine) {
+          case MYSQL:
+            retrieveTopologySql =
+                "SELECT SUBSTRING_INDEX(endpoint, '.', 1) as SERVER_ID FROM mysql.rds_topology";
+            break;
+          case PG:
+            retrieveTopologySql =
+                "SELECT SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint)) as SERVER_ID "
+                  + "FROM rds_tools.show_topology()";
+            break;
+          default:
+            throw new UnsupportedOperationException(databaseEngine.toString());
+        }
         break;
       default:
-        throw new UnsupportedOperationException(databaseEngine.toString());
+        throw new UnsupportedOperationException(deployment.toString());
     }
 
     ArrayList<String> auroraInstances = new ArrayList<>();
@@ -709,6 +860,7 @@ public class AuroraTestUtility {
         () ->
             queryInstanceId(
                 TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
                 connection));
   }
 
@@ -735,7 +887,12 @@ public class AuroraTestUtility {
     final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final String clusterEndpoint = dbInfo.getClusterEndpoint();
 
-    failoverClusterToTarget(clusterId, targetWriterId);
+    DatabaseEngineDeployment deployment =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+    failoverClusterToTarget(
+        clusterId,
+        // TAZ cluster doesn't support target node
+        deployment != DatabaseEngineDeployment.RDS_MULTI_AZ ? targetWriterId : null);
 
     int remainingAttempts = 5;
     while (!hasWriterChanged(initialWriterId, TimeUnit.MINUTES.toNanos(5))) {
@@ -780,7 +937,7 @@ public class AuroraTestUtility {
     return true;
   }
 
-  public void failoverClusterToTarget(String clusterId, String targetInstanceId)
+  public void failoverClusterToTarget(String clusterId, @Nullable String targetInstanceId)
       throws InterruptedException {
     waitUntilClusterHasRightState(clusterId);
 
@@ -788,10 +945,12 @@ public class AuroraTestUtility {
     while (--remainingAttempts > 0) {
       try {
         FailoverDbClusterResponse response = rdsClient.failoverDBCluster(
-            (builder) ->
-                builder
-                    .dbClusterIdentifier(clusterId)
-                    .targetDBInstanceIdentifier(targetInstanceId));
+            (builder) -> {
+              builder.dbClusterIdentifier(clusterId);
+              if (!StringUtils.isNullOrEmpty(targetInstanceId)) {
+                builder.targetDBInstanceIdentifier(targetInstanceId);
+              }
+            });
         if (!response.sdkHttpResponse().isSuccessful()) {
           LOGGER.finest(String.format("failoverDBCluster response: %d, %s",
               response.sdkHttpResponse().statusCode(),
@@ -847,32 +1006,52 @@ public class AuroraTestUtility {
     return matchedMemberList.get(0).dbInstanceIdentifier();
   }
 
-  protected String getInstanceIdSql(DatabaseEngine databaseEngine) {
-    switch (databaseEngine) {
-      case MYSQL:
-        return "SELECT @@aurora_server_id as id";
-      case PG:
-        return "SELECT aurora_db_instance_identifier()";
+  protected String getInstanceIdSql(DatabaseEngine databaseEngine, DatabaseEngineDeployment deployment) {
+    switch (deployment) {
+      case AURORA:
+        switch (databaseEngine) {
+          case MYSQL:
+            return "SELECT @@aurora_server_id as id";
+          case PG:
+            return "SELECT aurora_db_instance_identifier()";
+          default:
+            throw new UnsupportedOperationException(databaseEngine.toString());
+        }
+      case RDS_MULTI_AZ:
+        switch (databaseEngine) {
+          case MYSQL:
+            return "SELECT SUBSTRING_INDEX(endpoint, '.', 1) as id FROM mysql.rds_topology WHERE id=@@server_id";
+          case PG:
+            return "SELECT SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint)) as id "
+                    + "FROM rds_tools.show_topology() "
+                    + "WHERE id IN (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
+          default:
+            throw new UnsupportedOperationException(databaseEngine.toString());
+        }
       default:
-        throw new UnsupportedOperationException(databaseEngine.toString());
+        throw new UnsupportedOperationException(deployment.toString());
     }
   }
 
   public String queryInstanceId(Connection connection) throws SQLException {
     return queryInstanceId(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), connection);
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+        connection);
   }
 
-  public String queryInstanceId(DatabaseEngine databaseEngine, Connection connection)
+  public String queryInstanceId(
+      DatabaseEngine databaseEngine, DatabaseEngineDeployment deployment, Connection connection)
       throws SQLException {
     try (final Statement stmt = connection.createStatement()) {
-      return executeInstanceIdQuery(databaseEngine, stmt);
+      return executeInstanceIdQuery(databaseEngine, deployment, stmt);
     }
   }
 
-  public String executeInstanceIdQuery(DatabaseEngine databaseEngine, Statement stmt)
+  protected String executeInstanceIdQuery(
+      DatabaseEngine databaseEngine, DatabaseEngineDeployment deployment, Statement stmt)
       throws SQLException {
-    try (final ResultSet rs = stmt.executeQuery(getInstanceIdSql(databaseEngine))) {
+    try (final ResultSet rs = stmt.executeQuery(getInstanceIdSql(databaseEngine, deployment))) {
       if (rs.next()) {
         return rs.getString(1);
       }

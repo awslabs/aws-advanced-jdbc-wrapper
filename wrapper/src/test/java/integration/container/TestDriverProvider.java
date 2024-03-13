@@ -146,7 +146,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                 }
 
                 if (testRequest.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
-                  AuroraTestUtility auroraUtil = new AuroraTestUtility(testInfo.getAuroraRegion());
+                  AuroraTestUtility auroraUtil = new AuroraTestUtility(testInfo.getRegion());
                   auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
                   boolean makeSureFirstInstanceWriter =

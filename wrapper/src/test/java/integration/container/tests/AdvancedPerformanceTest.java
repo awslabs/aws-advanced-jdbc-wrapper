@@ -98,7 +98,7 @@ public class AdvancedPerformanceTest {
   private static final ConcurrentLinkedQueue<PerfStat> perfDataList = new ConcurrentLinkedQueue<>();
 
   protected static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getRegion());
 
   private static void doWritePerfDataToFile(
       String fileName, ConcurrentLinkedQueue<PerfStat> dataList) throws IOException {
