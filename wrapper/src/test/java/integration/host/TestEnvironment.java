@@ -579,10 +579,10 @@ public class TestEnvironment implements AutoCloseable {
   private static String getDbInstanceClass(TestEnvironmentRequest request) {
     switch (request.getDatabaseEngineDeployment()) {
       case AURORA:
-        return "db.r6g.large";
+        return "db.r5.large";
       case RDS:
       case RDS_MULTI_AZ:
-        return "db.m5d.large";
+        return "db.m5.large";
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
