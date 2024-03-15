@@ -582,7 +582,7 @@ public class TestEnvironment implements AutoCloseable {
         return "db.r5.large";
       case RDS:
       case RDS_MULTI_AZ:
-        return "db.m5.large";
+        return "db.m5d.large";
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
