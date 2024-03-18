@@ -687,10 +687,13 @@ public class AuroraTestUtility {
 
   public void waitUntilClusterHasRightState(String clusterId) throws InterruptedException {
     String status = getDBCluster(clusterId).status();
-    while (!"available".equalsIgnoreCase(status)) {
+    LOGGER.finest("Cluster status: " + status);
+    final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
+    while (!"available".equalsIgnoreCase(status) && waitTillNanoTime > System.nanoTime()) {
       TimeUnit.MILLISECONDS.sleep(1000);
       status = getDBCluster(clusterId).status();
     }
+    LOGGER.finest("Cluster status (after wait): " + status);
   }
 
   public DBCluster getDBCluster(String clusterId) {
@@ -887,12 +890,17 @@ public class AuroraTestUtility {
   public void failoverClusterToATargetAndWaitUntilWriterChanged(
       String clusterId, String initialWriterId, String targetWriterId)
       throws InterruptedException {
-    LOGGER.finest(String.format("failover from %s to target: %s", initialWriterId, targetWriterId));
-    final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
-    final String clusterEndpoint = dbInfo.getClusterEndpoint();
 
     DatabaseEngineDeployment deployment =
         TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+    if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ) {
+      LOGGER.finest(String.format("failover from: %s", initialWriterId));
+    } else {
+      LOGGER.finest(String.format("failover from %s to target: %s", initialWriterId, targetWriterId));
+    }
+    final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
+    final String clusterEndpoint = dbInfo.getClusterEndpoint();
+
     failoverClusterToTarget(
         clusterId,
         // TAZ cluster doesn't support target node
