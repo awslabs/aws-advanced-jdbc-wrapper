@@ -39,9 +39,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -496,6 +495,11 @@ public class AuroraTestUtility {
                   .groupName(dbSecGroup)
                   .cidrIp(ipAddress + "/32")
                   .ipProtocol("-1") // All protocols
+                  .ipPermissions((permissionBuilder) ->
+                      permissionBuilder.ipRanges((ipRangeBuilder) ->
+                          ipRangeBuilder
+                              .cidrIp(ipAddress + "/32")
+                              .description("Test run at " + Instant.now())))
                   .fromPort(0) // For all ports
                   .toPort(65535));
     } catch (Ec2Exception exception) {
