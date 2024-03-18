@@ -328,8 +328,6 @@ tasks.register<Test>("test-all-aurora") {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-failover", "true")
         systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-
     }
 }
 
