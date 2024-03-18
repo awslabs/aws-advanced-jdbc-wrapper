@@ -318,6 +318,7 @@ public class AuroraTestUtility {
     CreateDbClusterRequest.Builder clusterBuilder =
         CreateDbClusterRequest.builder()
             .dbClusterIdentifier(dbIdentifier)
+            .publiclyAccessible(true)
             .databaseName(dbName)
             .masterUsername(dbUsername)
             .masterUserPassword(dbPassword)

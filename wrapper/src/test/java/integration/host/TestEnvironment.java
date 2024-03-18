@@ -466,6 +466,7 @@ public class TestEnvironment implements AutoCloseable {
   private static void authorizeIP(TestEnvironment env) {
     try {
       env.runnerIP = env.auroraUtil.getPublicIPAddress();
+      LOGGER.finest("Test runner IP: " + env.runnerIP);
     } catch (UnknownHostException e) {
       throw new RuntimeException(e);
     }

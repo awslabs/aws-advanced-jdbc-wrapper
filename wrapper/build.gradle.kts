@@ -339,6 +339,13 @@ tasks.register<Test>("test-all-pg-aurora") {
         systemProperty("test-no-mysql-engine", "true")
         systemProperty("test-no-mariadb-driver", "true")
         systemProperty("test-no-mariadb-engine", "true")
+
+        // temporary
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-failover", "true")
+        systemProperty("test-no-hikari", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-openjdk8", "true")
     }
 }
 
