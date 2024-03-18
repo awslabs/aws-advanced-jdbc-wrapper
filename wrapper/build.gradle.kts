@@ -327,7 +327,6 @@ tasks.register<Test>("test-all-aurora") {
         // temporary
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-failover", "true")
-        systemProperty("test-no-graalvm", "true")
     }
 }
 
