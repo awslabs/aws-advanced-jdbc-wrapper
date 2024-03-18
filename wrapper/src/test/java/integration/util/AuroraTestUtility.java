@@ -493,15 +493,14 @@ public class AuroraTestUtility {
           (builder) ->
               builder
                   .groupName(dbSecGroup)
-                  .cidrIp(ipAddress + "/32")
-                  .ipProtocol("-1") // All protocols
                   .ipPermissions((permissionBuilder) ->
                       permissionBuilder.ipRanges((ipRangeBuilder) ->
                           ipRangeBuilder
                               .cidrIp(ipAddress + "/32")
-                              .description("Test run at " + Instant.now())))
-                  .fromPort(0) // For all ports
-                  .toPort(65535));
+                              .description("Test run at " + Instant.now()))
+                          .ipProtocol("-1") // All protocols
+                          .fromPort(0) // For all ports
+                          .toPort(65535)));
     } catch (Ec2Exception exception) {
       if (!DUPLICATE_IP_ERROR_CODE.equalsIgnoreCase(exception.awsErrorDetails().errorCode())) {
         throw exception;
