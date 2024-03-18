@@ -323,9 +323,6 @@ tasks.register<Test>("test-all-aurora") {
         systemProperty("test-no-mariadb-driver", "true")
         systemProperty("test-no-mariadb-engine", "true")
         systemProperty("test-no-graalvm", "true")
-
-        // temporary
-        systemProperty("test-no-aurora", "true")
     }
 }
 
