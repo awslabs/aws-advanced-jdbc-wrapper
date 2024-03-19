@@ -955,25 +955,35 @@ public class AuroraTestUtility {
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
     if (deployment == DatabaseEngineDeployment.AURORA) {
+      LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
       String targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getHost());
-      while (!clusterIp.equals(targetWriterIp)) {
+      LOGGER.finest("Expected target writer resolves to: " + targetWriterIp);
+      long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+      while (!clusterIp.equals(targetWriterIp) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
         clusterIp = hostToIP(clusterEndpoint);
         targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getHost());
       }
+      LOGGER.finest("Expected target writer resolves to (after wait): " + targetWriterIp);
+      LOGGER.finest("Cluster endpoint resolves to (after wait): " + clusterIp);
+
+      // Wait for target instance to be verified as a writer
+      waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+      while (!isDBInstanceWriter(targetWriterId) && waitTillNanoTime > System.nanoTime()) {
+        TimeUnit.SECONDS.sleep(1);
+      }
+
     } else if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ) {
       // We don't know what is the new writer node since targetWriterId is ignored by MultiAz cluster.
       // Waiting for clusterEndpoint changes IP address
+      LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
       String newClusterEndpointIp = hostToIP(clusterEndpoint);
-      while (!clusterIp.equals(newClusterEndpointIp)) {
+      final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
+      while (clusterIp.equals(newClusterEndpointIp) && waitTillNanoTime > System.nanoTime()) {
         TimeUnit.SECONDS.sleep(1);
         newClusterEndpointIp = hostToIP(clusterEndpoint);
       }
-    }
-
-    // Wait for target instance to be verified as a writer
-    while (!isDBInstanceWriter(targetWriterId)) {
-      TimeUnit.SECONDS.sleep(1);
+      LOGGER.finest("Cluster endpoint resolves to (after wait): " + newClusterEndpointIp);
     }
 
     LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
