@@ -16,6 +16,7 @@
 
 package integration.util;
 
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -41,11 +42,15 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -324,6 +329,8 @@ public class AuroraTestUtility {
             .sourceRegion(dbRegion.id())
             .engine(dbEngine)
             .engineVersion(dbEngineVersion)
+            .enablePerformanceInsights(false)
+            .backupRetentionPeriod(1)
             .storageEncrypted(true)
             .tags(testRunnerTag);
 
@@ -688,8 +695,9 @@ public class AuroraTestUtility {
   public void waitUntilClusterHasRightState(String clusterId) throws InterruptedException {
     String status = getDBCluster(clusterId).status();
     LOGGER.finest("Cluster status: " + status);
+    final Set<String> allowedStatuses = new HashSet<>(Arrays.asList("available", "backing-up"));
     final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
-    while (!"available".equalsIgnoreCase(status) && waitTillNanoTime > System.nanoTime()) {
+    while (!allowedStatuses.contains(status.toLowerCase()) && waitTillNanoTime > System.nanoTime()) {
       TimeUnit.MILLISECONDS.sleep(1000);
       status = getDBCluster(clusterId).status();
     }

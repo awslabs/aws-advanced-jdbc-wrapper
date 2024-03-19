@@ -145,7 +145,10 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   ProxyHelper.enableAllConnectivity();
                 }
 
-                if (testRequest.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
+                final DatabaseEngineDeployment deployment = testRequest.getDatabaseEngineDeployment();
+                if (deployment == DatabaseEngineDeployment.AURORA
+                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ) {
+
                   AuroraTestUtility auroraUtil = new AuroraTestUtility(testInfo.getRegion());
                   auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
@@ -211,15 +214,17 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   }
 
                   auroraUtil.makeSureInstancesUp(instanceIDs);
-                  TestAuroraHostListProvider.clearCache();
-                  TestPluginServiceImpl.clearHostAvailabilityCache();
-                  DialectManager.resetEndpointCache();
-                  TargetDriverDialectManager.resetCustomDialect();
-                  MonitorThreadContainer.releaseInstance();
-                  MonitorServiceImpl.clearCache();
-                  software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
-                  RdsUtils.clearCache();
                 }
+
+                TestAuroraHostListProvider.clearCache();
+                TestPluginServiceImpl.clearHostAvailabilityCache();
+                DialectManager.resetEndpointCache();
+                TargetDriverDialectManager.resetCustomDialect();
+                MonitorThreadContainer.releaseInstance();
+                MonitorServiceImpl.clearCache();
+                software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
+                RdsUtils.clearCache();
+
                 if (tracesEnabled) {
                     AWSXRay.endSegment();
                 }
