@@ -16,7 +16,6 @@
 
 package integration.util;
 
-import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -43,7 +42,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -695,10 +693,10 @@ public class AuroraTestUtility {
   public void waitUntilClusterHasRightState(String clusterId) throws InterruptedException {
     String status = getDBCluster(clusterId).status();
     LOGGER.finest("Cluster status: " + status);
-    final Set<String> allowedStatuses = new HashSet<>(Arrays.asList("available", "backing-up"));
-    final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
+    final Set<String> allowedStatuses = new HashSet<>(Arrays.asList("available")); // "backing-up"
+    final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
     while (!allowedStatuses.contains(status.toLowerCase()) && waitTillNanoTime > System.nanoTime()) {
-      TimeUnit.MILLISECONDS.sleep(1000);
+      TimeUnit.MILLISECONDS.sleep(5000);
       status = getDBCluster(clusterId).status();
     }
     LOGGER.finest("Cluster status (after wait): " + status);
@@ -720,6 +718,7 @@ public class AuroraTestUtility {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
   }
 
+  // The first instance in topology should be a writer!
   public List<String> getAuroraInstanceIds(
       DatabaseEngine databaseEngine,
       DatabaseEngineDeployment deployment,
@@ -749,13 +748,23 @@ public class AuroraTestUtility {
       case RDS_MULTI_AZ:
         switch (databaseEngine) {
           case MYSQL:
+
+            final String replicaWriterId = getMultiAzMysqlReplicaWriterInstanceId(connectionUrl, userName, password);
             retrieveTopologySql =
-                "SELECT SUBSTRING_INDEX(endpoint, '.', 1) as SERVER_ID FROM mysql.rds_topology";
+                "SELECT SUBSTRING_INDEX(endpoint, '.', 1) as SERVER_ID FROM mysql.rds_topology"
+                + " ORDER BY CASE WHEN id = "
+                + (replicaWriterId == null ? "@@server_id" : String.format("'%s'", replicaWriterId))
+                + " THEN 0 ELSE 1 END, SUBSTRING_INDEX(endpoint, '.', 1)";
             break;
           case PG:
             retrieveTopologySql =
-                "SELECT SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint)) as SERVER_ID "
-                  + "FROM rds_tools.show_topology()";
+                "SELECT SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint)) as SERVER_ID"
+                + " FROM rds_tools.show_topology()"
+                + " ORDER BY CASE WHEN id ="
+                + " (SELECT MAX(multi_az_db_cluster_source_dbi_resource_id) FROM"
+                + " rds_tools.multi_az_db_cluster_source_dbi_resource_id())"
+                  + " THEN 0 ELSE 1 END, endpoint";
+
             break;
           default:
             throw new UnsupportedOperationException(databaseEngine.toString());
@@ -777,6 +786,24 @@ public class AuroraTestUtility {
       }
     }
     return auroraInstances;
+  }
+
+  private String getMultiAzMysqlReplicaWriterInstanceId(
+      String connectionUrl,
+      String userName,
+      String password)
+      throws SQLException {
+
+    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
+        final Statement stmt = conn.createStatement();
+        final ResultSet resultSet = stmt.executeQuery("SHOW REPLICA STATUS")) {
+      if (resultSet.next()) {
+        final String writerId = resultSet.getString("Source_Server_id"); // like '1034958454'
+        return writerId;
+      }
+      return null;
+    }
+
   }
 
   public Boolean isDBInstanceWriter(String instanceId) {
