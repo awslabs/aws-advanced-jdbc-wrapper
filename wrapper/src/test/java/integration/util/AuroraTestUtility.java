@@ -941,6 +941,8 @@ public class AuroraTestUtility {
         // TAZ cluster doesn't support target node
         deployment != DatabaseEngineDeployment.RDS_MULTI_AZ ? targetWriterId : null);
 
+    String clusterIp = hostToIP(clusterEndpoint);
+
     int remainingAttempts = 5;
     while (!hasWriterChanged(initialWriterId, TimeUnit.MINUTES.toNanos(5))) {
       // if writer is not changed, try triggering failover again
@@ -952,12 +954,21 @@ public class AuroraTestUtility {
     }
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
-    String clusterIp = hostToIP(clusterEndpoint);
-    String targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getHost());
-    while (!clusterIp.equals(targetWriterIp)) {
-      TimeUnit.SECONDS.sleep(1);
-      clusterIp = hostToIP(clusterEndpoint);
-      targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getHost());
+    if (deployment == DatabaseEngineDeployment.AURORA) {
+      String targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getHost());
+      while (!clusterIp.equals(targetWriterIp)) {
+        TimeUnit.SECONDS.sleep(1);
+        clusterIp = hostToIP(clusterEndpoint);
+        targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getHost());
+      }
+    } else if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ) {
+      // We don't know what is the new writer node since targetWriterId is ignored by MultiAz cluster.
+      // Waiting for clusterEndpoint changes IP address
+      String newClusterEndpointIp = hostToIP(clusterEndpoint);
+      while (!clusterIp.equals(newClusterEndpointIp)) {
+        TimeUnit.SECONDS.sleep(1);
+        newClusterEndpointIp = hostToIP(clusterEndpoint);
+      }
     }
 
     // Wait for target instance to be verified as a writer
