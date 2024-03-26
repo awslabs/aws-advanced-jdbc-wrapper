@@ -33,6 +33,7 @@ import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
+import integration.TestEnvironmentRequest;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
@@ -78,7 +79,7 @@ import software.amazon.jdbc.util.SqlState;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnNumOfInstances(min = 2)
-@EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA, DatabaseEngineDeployment.RDS_MULTI_AZ})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
@@ -123,7 +124,15 @@ public class ReadWriteSplittingTests {
 
   protected static Properties getPropsWithFailover() {
     final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm2");
+    PropertyDefinition.PLUGINS.set(props, "failover,efm2");
+    final TestEnvironmentRequest request = TestEnvironment.getCurrent().getInfo().getRequest();
+    if (request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ) {
+      if (request.getDatabaseEngine() == DatabaseEngine.MYSQL) {
+        props.setProperty("wrapperDialect", "rds-multi-az-mysql-cluster");
+      } else if (request.getDatabaseEngine() == DatabaseEngine.PG) {
+        props.setProperty("wrapperDialect", "rds-multi-az-pg-cluster");
+      }
+    }
     return props;
   }
 

@@ -691,9 +691,13 @@ public class AuroraTestUtility {
   }
 
   public void waitUntilClusterHasRightState(String clusterId) throws InterruptedException {
+    waitUntilClusterHasRightState(clusterId, "available");
+  }
+
+  public void waitUntilClusterHasRightState(String clusterId, String status1) throws InterruptedException {
     String status = getDBCluster(clusterId).status();
     LOGGER.finest("Cluster status: " + status);
-    final Set<String> allowedStatuses = new HashSet<>(Arrays.asList("available")); // "backing-up"
+    final Set<String> allowedStatuses = new HashSet<>(Arrays.asList(status1)); // "backing-up"
     final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(10);
     while (!allowedStatuses.contains(status.toLowerCase()) && waitTillNanoTime > System.nanoTime()) {
       TimeUnit.MILLISECONDS.sleep(5000);
@@ -838,7 +842,6 @@ public class AuroraTestUtility {
 
   protected void makeSureInstancesUp(List<String> instances, boolean finalCheck)
       throws InterruptedException {
-    final ExecutorService executorService = Executors.newFixedThreadPool(instances.size());
     final ConcurrentHashMap<String, Boolean> remainingInstances = new ConcurrentHashMap<>();
     instances.forEach((k) -> remainingInstances.put(k, true));
 
@@ -847,42 +850,31 @@ public class AuroraTestUtility {
     DriverHelper.setSocketTimeout(props, 5, TimeUnit.SECONDS);
 
     for (final String id : instances) {
-      executorService.submit(
-          () -> {
-            while (true) {
-              TestInstanceInfo instanceInfo =
-                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(id);
-              try (final Connection conn =
-                  DriverManager.getConnection(
-                      ConnectionStringHelper.getUrlWithPlugins(
-                          instanceInfo.getHost(),
-                          instanceInfo.getPort(),
-                          TestEnvironment.getCurrent()
-                              .getInfo()
-                              .getDatabaseInfo()
-                              .getDefaultDbName(),
-                          ""),
-                      props)) {
-                remainingInstances.remove(id);
-                break;
-              } catch (final SQLException ex) {
-                // Continue waiting until instance is up.
-                LOGGER.log(Level.FINEST, "Exception while trying to connect to instance " + id, ex);
-              } catch (final Exception ex) {
-                LOGGER.log(Level.SEVERE, "Exception:", ex);
-                break;
-              }
-              TimeUnit.MILLISECONDS.sleep(5000);
-            }
-            return null;
-          });
-    }
-    executorService.shutdown();
-    boolean isDone = executorService.awaitTermination(7, TimeUnit.MINUTES);
-
-    if (!isDone) {
-      LOGGER.finest("Some task are not completed. Shutting down them now.");
-      executorService.shutdownNow();
+      while (true) {
+        TestInstanceInfo instanceInfo =
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(id);
+        try (final Connection conn =
+            DriverManager.getConnection(
+                ConnectionStringHelper.getUrlWithPlugins(
+                    instanceInfo.getHost(),
+                    instanceInfo.getPort(),
+                    TestEnvironment.getCurrent()
+                        .getInfo()
+                        .getDatabaseInfo()
+                        .getDefaultDbName(),
+                    ""),
+                props)) {
+          remainingInstances.remove(id);
+          break;
+        } catch (final SQLException ex) {
+          // Continue waiting until instance is up.
+          LOGGER.log(Level.FINEST, "Exception while trying to connect to instance " + id, ex);
+        } catch (final Exception ex) {
+          LOGGER.log(Level.SEVERE, "Exception:", ex);
+          break;
+        }
+        TimeUnit.MILLISECONDS.sleep(5000);
+      }
     }
 
     if (finalCheck) {
@@ -974,6 +966,11 @@ public class AuroraTestUtility {
       }
 
     } else if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ) {
+      // TODO check cluster status from active -> failing over
+      waitUntilClusterHasRightState(clusterId, "failing-over");
+      // TODO check cluster status from failing over -> active
+      waitUntilClusterHasRightState(clusterId, "available");
+
       // We don't know what is the new writer node since targetWriterId is ignored by MultiAz cluster.
       // Waiting for clusterEndpoint changes IP address
       LOGGER.finest("Cluster endpoint resolves to: " + clusterIp);
@@ -984,8 +981,9 @@ public class AuroraTestUtility {
         newClusterEndpointIp = hostToIP(clusterEndpoint);
       }
       LOGGER.finest("Cluster endpoint resolves to (after wait): " + newClusterEndpointIp);
+      makeSureInstancesUp(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().stream().map(
+          TestInstanceInfo::getInstanceId).collect(Collectors.toList()));
     }
-
     LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
   }
 

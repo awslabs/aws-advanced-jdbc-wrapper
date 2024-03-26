@@ -223,7 +223,6 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                 MonitorThreadContainer.releaseInstance();
                 MonitorServiceImpl.clearCache();
                 software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
-                RdsUtils.clearCache();
 
                 if (tracesEnabled) {
                     AWSXRay.endSegment();
@@ -243,6 +242,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                   TimeUnit.SECONDS.sleep(3); // let OTLP container to send all collected metrics and traces
                 }
+                RdsUtils.clearCache();
               }
             });
       }
