@@ -109,4 +109,8 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
         FETCH_WRITER_NODE_QUERY,
         FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
   }
+
+  public String getTopologyQuery() {
+    return TOPOLOGY_QUERY;
+  }
 }
