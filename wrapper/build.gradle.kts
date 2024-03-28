@@ -323,9 +323,6 @@ tasks.register<Test>("test-all-aurora") {
         systemProperty("test-no-mariadb-driver", "true")
         systemProperty("test-no-mariadb-engine", "true")
         systemProperty("test-no-graalvm", "true")
-
-        // temporary
-        systemProperty("test-no-aurora", "true")
     }
 }
 
@@ -540,48 +537,6 @@ tasks.register<Test>("test-aurora-mysql-advanced-performance") {
     }
 }
 
-tasks.register<Test>("debug-aurora-mysql-taz") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-performance", "true")
-    }
-}
-
-
-tasks.register<Test>("test-aurora-mysql-taz") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.TestRunner.runTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-aurora", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk11", "true")
-        systemProperty("test-no-pg-driver", "true")
-        systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-instances-1", "true")
-        systemProperty("test-no-instances-2", "true")
-        systemProperty("test-no-performance", "true")
-    }
-}
 // Autoscaling
 
 tasks.register<Test>("test-autoscaling-only") {
