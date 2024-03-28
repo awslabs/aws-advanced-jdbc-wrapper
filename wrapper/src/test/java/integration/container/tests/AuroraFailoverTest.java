@@ -74,7 +74,7 @@ public class AuroraFailoverTest {
   private static final Logger LOGGER = Logger.getLogger(AuroraFailoverTest.class.getName());
 
   protected static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getRegion());
   protected static final int IS_VALID_TIMEOUT = 5;
 
   protected String currentWriter;
@@ -347,6 +347,7 @@ public class AuroraFailoverTest {
 
       final String instanceId = auroraUtil.queryInstanceId(
           TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+          TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
           conn);
       assertEquals(this.currentWriter, instanceId);
 
@@ -363,6 +364,7 @@ public class AuroraFailoverTest {
           FailoverSQLException.class,
           () -> auroraUtil.queryInstanceId(
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
               conn));
 
       // Sleep for 10 seconds to allow daemon threads to finish running.

@@ -145,8 +145,11 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   ProxyHelper.enableAllConnectivity();
                 }
 
-                if (testRequest.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
-                  AuroraTestUtility auroraUtil = new AuroraTestUtility(testInfo.getAuroraRegion());
+                final DatabaseEngineDeployment deployment = testRequest.getDatabaseEngineDeployment();
+                if (deployment == DatabaseEngineDeployment.AURORA
+                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ) {
+
+                  AuroraTestUtility auroraUtil = new AuroraTestUtility(testInfo.getRegion());
                   auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
                   boolean makeSureFirstInstanceWriter =
@@ -211,15 +214,16 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   }
 
                   auroraUtil.makeSureInstancesUp(instanceIDs);
-                  TestAuroraHostListProvider.clearCache();
-                  TestPluginServiceImpl.clearHostAvailabilityCache();
-                  DialectManager.resetEndpointCache();
-                  TargetDriverDialectManager.resetCustomDialect();
-                  MonitorThreadContainer.releaseInstance();
-                  MonitorServiceImpl.clearCache();
-                  software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
-                  RdsUtils.clearCache();
                 }
+
+                TestAuroraHostListProvider.clearCache();
+                TestPluginServiceImpl.clearHostAvailabilityCache();
+                DialectManager.resetEndpointCache();
+                TargetDriverDialectManager.resetCustomDialect();
+                MonitorThreadContainer.releaseInstance();
+                MonitorServiceImpl.clearCache();
+                software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
+
                 if (tracesEnabled) {
                     AWSXRay.endSegment();
                 }
@@ -238,6 +242,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                   TimeUnit.SECONDS.sleep(3); // let OTLP container to send all collected metrics and traces
                 }
+                RdsUtils.clearCache();
               }
             });
       }

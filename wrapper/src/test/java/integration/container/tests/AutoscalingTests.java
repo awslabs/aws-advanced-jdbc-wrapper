@@ -63,7 +63,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @MakeSureFirstInstanceWriter
 public class AutoscalingTests {
   protected static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getRegion());
 
   protected static Properties getDefaultPropsNoPlugins() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();

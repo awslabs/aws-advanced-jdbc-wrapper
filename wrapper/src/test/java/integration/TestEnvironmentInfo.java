@@ -24,7 +24,7 @@ public class TestEnvironmentInfo {
   private String awsSecretAccessKey;
   private String awsSessionToken;
 
-  private String auroraRegion;
+  private String region;
   private String auroraClusterName;
   private String iamUsername;
 
@@ -75,8 +75,8 @@ public class TestEnvironmentInfo {
     return this.awsSessionToken;
   }
 
-  public String getAuroraRegion() {
-    return this.auroraRegion;
+  public String getRegion() {
+    return this.region;
   }
 
   public String getAuroraClusterName() {
@@ -91,8 +91,8 @@ public class TestEnvironmentInfo {
     this.request = request;
   }
 
-  public void setAuroraRegion(String auroraRegion) {
-    this.auroraRegion = auroraRegion;
+  public void setRegion(String region) {
+    this.region = region;
   }
 
   public void setAuroraClusterName(String auroraClusterName) {
