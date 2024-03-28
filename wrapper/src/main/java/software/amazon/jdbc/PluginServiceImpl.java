@@ -633,6 +633,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     final HostSpec host = this.identifyConnection(connection);
     if (host != null) {
       hostSpec.addAlias(host.asAliases().toArray(new String[]{}));
+    } else {
+      LOGGER.finest("Can't identify connection");
     }
   }
 
