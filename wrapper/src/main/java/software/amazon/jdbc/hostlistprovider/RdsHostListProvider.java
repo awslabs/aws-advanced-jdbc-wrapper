@@ -648,9 +648,15 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       if (resultSet.next()) {
         final String instanceName = resultSet.getString(1);
 
-        final List<HostSpec> topology = this.refresh();
+        List<HostSpec> topology = this.refresh();
 
         if (topology == null) {
+          LOGGER.finest("forceRefresh topology");
+          topology = this.forceRefresh(connection);
+        }
+
+        if (topology == null) {
+          LOGGER.finest("Topology is null");
           return null;
         }
 
