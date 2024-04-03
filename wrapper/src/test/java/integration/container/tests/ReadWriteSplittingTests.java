@@ -48,7 +48,6 @@ import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
-import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -82,7 +81,10 @@ import software.amazon.jdbc.util.SqlState;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnNumOfInstances(min = 2)
-@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA, DatabaseEngineDeployment.RDS_MULTI_AZ})
+@EnableOnDatabaseEngineDeployment({
+    DatabaseEngineDeployment.AURORA,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
@@ -130,7 +132,7 @@ public class ReadWriteSplittingTests {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "failover,efm2");
     final TestEnvironmentRequest request = TestEnvironment.getCurrent().getInfo().getRequest();
-    if (request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ) {
+    if (request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
       if (request.getDatabaseEngine() == DatabaseEngine.MYSQL) {
         props.setProperty("wrapperDialect", "rds-multi-az-mysql-cluster");
       } else if (request.getDatabaseEngine() == DatabaseEngine.PG) {

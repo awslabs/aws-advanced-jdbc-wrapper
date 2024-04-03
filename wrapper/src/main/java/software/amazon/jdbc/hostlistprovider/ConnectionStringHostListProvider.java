@@ -118,4 +118,9 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
     throw new UnsupportedOperationException(
         Messages.get("ConnectionStringHostListProvider.unsupportedIdentifyConnection"));
   }
+
+  @Override
+  public String getClusterId() {
+    return null;
+  }
 }

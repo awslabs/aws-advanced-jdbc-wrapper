@@ -184,4 +184,8 @@ public interface PluginService extends ExceptionHandler {
   String getTargetName();
 
   @NonNull SessionStateService getSessionStateService();
+
+  <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound);
+
+  <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound);
 }

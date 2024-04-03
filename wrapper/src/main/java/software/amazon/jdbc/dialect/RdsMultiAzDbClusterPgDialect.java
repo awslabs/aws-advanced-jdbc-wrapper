@@ -21,12 +21,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Set;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.RdsUtils;
 
-public class RdsMultiAzDbClusterPgDialect extends PgDialect {
+public class RdsMultiAzDbClusterPgDialect extends PgDialect implements SupportBlueGreen {
 
   private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
 
@@ -44,6 +47,8 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   private static final String NODE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
+
+  protected final RdsUtils rdsUtils = new RdsUtils();
 
   @Override
   public ExceptionHandler getExceptionHandler() {
@@ -108,5 +113,32 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
         IS_READER_QUERY,
         FETCH_WRITER_NODE_QUERY,
         FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
+  }
+
+  @Override
+  public String getBlueGreenStatusQuery() {
+    return "SELECT id, endpoint, port, NULL as blue_green_deployment"
+        + " FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
+  }
+
+  @Override
+  public boolean isStatusAvailable(final Connection connection) {
+    try {
+      try (Statement statement = connection.createStatement();
+          ResultSet rs = statement.executeQuery(WRITER_NODE_FUNC_EXIST_QUERY)) {
+        return rs.next();
+      }
+    } catch (SQLException ex) {
+      return false;
+    }
+  }
+
+  @Override
+  public boolean supportAvailability(final @NonNull Set<String> hostAliases) {
+    return hostAliases.stream()
+        .filter(this.rdsUtils::isGreenInstance)
+        .map(x -> false)
+        .findAny()
+        .orElse(true);
   }
 }

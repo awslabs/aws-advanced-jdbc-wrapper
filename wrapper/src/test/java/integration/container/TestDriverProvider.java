@@ -53,6 +53,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.util.AnnotationUtils;
+import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
+import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
 import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
@@ -145,7 +147,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                 final DatabaseEngineDeployment deployment = testRequest.getDatabaseEngineDeployment();
                 if (deployment == DatabaseEngineDeployment.AURORA
-                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ) {
+                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
 
                   AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
                   auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
@@ -206,12 +208,38 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     assertTrue(writerInetAddress.equals(clusterInetAddress));
                   } else {
                     instanceIDs =
-                        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
+                        testInfo.getDatabaseInfo().getInstances()
                             .stream().map(TestInstanceInfo::getInstanceId)
                             .collect(Collectors.toList());
                   }
 
                   auroraUtil.makeSureInstancesUp(instanceIDs);
+
+                } else if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE) {
+
+                  ArrayList<String> instanceIDs = new ArrayList<>();
+                  AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
+                  auroraUtil.waitUntilRdsInstanceHasRightState(
+                      testInfo.getDatabaseInfo().getInstances().get(0).getInstanceId(), "available");
+
+                  instanceIDs.add(testInfo.getDatabaseInfo().getInstances().get(0).getHost());
+
+                  if (testRequest.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)) {
+                    BlueGreenDeployment blueGreenDeployment =
+                        auroraUtil.getBlueGreenDeployment(testInfo.getBlueGreenDeploymentId());
+                    if (blueGreenDeployment != null) {
+                      String targetInstanceArn = blueGreenDeployment.target();
+                      DBInstance dbInstance = auroraUtil.getRdsInstanceInfoByArn(targetInstanceArn);
+                      if (dbInstance != null) {
+                        auroraUtil.waitUntilRdsInstanceHasRightState(
+                            dbInstance.dbInstanceIdentifier(), "available");
+                        instanceIDs.add(dbInstance.endpoint().address());
+                      }
+                    }
+                  }
+
+                  auroraUtil.makeSureInstancesUp(instanceIDs,
+                      testInfo.getDatabaseInfo().getInstances().get(0).getPort(), true);
                 }
 
                 TestAuroraHostListProvider.clearCache();
@@ -235,7 +263,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                 TestEnvironmentRequest testRequest = testInfo.getRequest();
                 final DatabaseEngineDeployment deployment = testRequest.getDatabaseEngineDeployment();
                 if ((deployment == DatabaseEngineDeployment.AURORA
-                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ)
+                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER)
                     && testRequest.getFeatures().contains(TestEnvironmentFeatures.FAILOVER_SUPPORTED)) {
 
                   AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();

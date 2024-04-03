@@ -89,7 +89,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   final String nodeIdQuery;
   private final String isReaderQuery;
   private RdsUrlType rdsUrlType;
-  private final RdsUtils rdsHelper;
+  protected final RdsUtils rdsHelper;
 
   private long refreshRateNano = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue != null
       ? TimeUnit.MILLISECONDS.toNanos(Long.parseLong(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue))
@@ -686,5 +686,10 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     }
 
     throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
+  }
+
+  @Override
+  public String getClusterId() {
+    return this.clusterId;
   }
 }

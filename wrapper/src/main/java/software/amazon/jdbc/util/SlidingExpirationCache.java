@@ -261,6 +261,8 @@ public class SlidingExpirationCache<K, V> {
       if (getClass() != obj.getClass()) {
         return false;
       }
+
+      @SuppressWarnings({"unchecked", "noinspection"})
       final CacheItem other = (CacheItem) obj;
       if (item == null) {
         return other.item == null;

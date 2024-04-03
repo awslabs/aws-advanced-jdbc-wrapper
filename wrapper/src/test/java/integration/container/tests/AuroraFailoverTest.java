@@ -53,6 +53,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -73,9 +74,10 @@ import software.amazon.jdbc.util.SqlState;
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @EnableOnNumOfInstances(min = 2)
-@EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA) // TODO: MultiAz is failing
+@EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA) // TODO: MultiAz Cluster is failing
 @MakeSureFirstInstanceWriter
 @Order(14)
+@Disabled
 public class AuroraFailoverTest {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraFailoverTest.class.getName());

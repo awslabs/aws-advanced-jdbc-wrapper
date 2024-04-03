@@ -22,11 +22,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.util.DriverInfo;
 
 /**
  * Suitable for the following AWS PG configurations.
  * - Regional Cluster
  */
+//TODO: debug; remove SupportBlueGreen
 public class AuroraPgDialect extends PgDialect {
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
@@ -127,4 +129,11 @@ public class AuroraPgDialect extends PgDialect {
         NODE_ID_QUERY,
         IS_READER_QUERY);
   }
+//
+//   //TODO: debug
+//   @Override
+//   public String getBlueGreenStatusQuery() {
+//     return "SELECT 'bg-test-2-instance-1.cx422ywmsto6.us-east-2.rds.amazonaws.com' as endpoint, 'SOURCE_SWITCHOVER' as blue_green_deployment"
+//         + " UNION SELECT 'bg-test-2-instance-1-green-dfbrwm.cx422ywmsto6.us-east-2.rds.amazonaws.com' as endpoint, 'TARGET_SWITCHOVER' as blue_green_deployment";
+//   }
 }
