@@ -83,4 +83,8 @@ public class AuroraMysqlDialect extends MysqlDialect {
         NODE_ID_QUERY,
         IS_READER_QUERY);
   }
+
+  public String getTopologyQuery() {
+    return TOPOLOGY_QUERY;
+  }
 }
