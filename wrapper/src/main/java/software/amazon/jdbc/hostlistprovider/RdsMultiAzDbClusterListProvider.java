@@ -187,9 +187,4 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
     hostSpec.setHostId(hostId);
     return hostSpec;
   }
-
-  @Override
-  public String getClusterId() throws UnsupportedOperationException {
-    throw new UnsupportedOperationException("RdsMultiAzDbClusterListProvider does not support `getClusterId` method.");
-  }
 }
