@@ -257,9 +257,9 @@ public class TestEnvironment implements AutoCloseable {
     if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
       DBCluster clusterInfo = env.auroraUtil.getClusterInfo(env.auroraClusterName);
       if (env.reuseAuroraDbCluster) {
-        BlueGreenDeployment deployment = env.auroraUtil.getBlueGreenDeploymentBySource(clusterInfo.dbClusterArn());
-        if (deployment != null) {
-          env.info.setBlueGreenDeploymentId(deployment.blueGreenDeploymentIdentifier());
+        BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeploymentBySource(clusterInfo.dbClusterArn());
+        if (bgDeployment != null) {
+          env.info.setBlueGreenDeploymentId(bgDeployment.blueGreenDeploymentIdentifier());
           return;
         }
       }
@@ -272,9 +272,9 @@ public class TestEnvironment implements AutoCloseable {
     } else if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE) {
       DBInstance instanceInfo = env.auroraUtil.getRdsInstanceInfo(env.rdsInstanceName);
       if (env.reuseRdsDbInstance) {
-        BlueGreenDeployment deployment = env.auroraUtil.getBlueGreenDeploymentBySource(instanceInfo.dbInstanceArn());
-        if (deployment != null) {
-          env.info.setBlueGreenDeploymentId(deployment.blueGreenDeploymentIdentifier());
+        BlueGreenDeployment bgDeployment = env.auroraUtil.getBlueGreenDeploymentBySource(instanceInfo.dbInstanceArn());
+        if (bgDeployment != null) {
+          env.info.setBlueGreenDeploymentId(bgDeployment.blueGreenDeploymentIdentifier());
           return;
         }
       }
@@ -285,7 +285,8 @@ public class TestEnvironment implements AutoCloseable {
       env.info.setBlueGreenDeploymentId(blueGreenId);
 
     } else {
-      LOGGER.warning("BG Deployments are supported for RDS MultiAz Instances and Aurora clusters only. Proceed without creating BG Deployment.");
+      LOGGER.warning("BG Deployments are supported for RDS MultiAz Instances and Aurora clusters only."
+          + " Proceed without creating BG Deployment.");
     }
   }
 
@@ -1072,10 +1073,11 @@ public class TestEnvironment implements AutoCloseable {
 
   private static void configureIamAccess(TestEnvironment env) {
 
-    if (env.info.getRequest().getDatabaseEngineDeployment() != DatabaseEngineDeployment.AURORA
-        && env.info.getRequest().getDatabaseEngineDeployment() != DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE) {
-      throw new UnsupportedOperationException(
-          env.info.getRequest().getDatabaseEngineDeployment().toString());
+    final DatabaseEngineDeployment deployment = env.info.getRequest().getDatabaseEngineDeployment();
+
+    if (deployment != DatabaseEngineDeployment.AURORA
+        && deployment != DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE) {
+      throw new UnsupportedOperationException(deployment.toString());
     }
 
     env.info.setIamUsername(
@@ -1094,14 +1096,14 @@ public class TestEnvironment implements AutoCloseable {
       }
 
       String url;
-      if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
+      if (deployment == DatabaseEngineDeployment.AURORA) {
         url = String.format(
                 "%s%s:%d/%s",
                 DriverHelper.getDriverProtocol(env.info.getRequest().getDatabaseEngine()),
                 env.info.getDatabaseInfo().getClusterEndpoint(),
                 env.info.getDatabaseInfo().getClusterEndpointPort(),
                 env.info.getDatabaseInfo().getDefaultDbName());
-      } else if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE) {
+      } else if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE) {
         url = String.format(
             "%s%s:%d/%s",
             DriverHelper.getDriverProtocol(env.info.getRequest().getDatabaseEngine()),
@@ -1109,8 +1111,7 @@ public class TestEnvironment implements AutoCloseable {
             env.info.getDatabaseInfo().getInstances().get(0).getPort(),
             env.info.getDatabaseInfo().getDefaultDbName());
       } else {
-        throw new UnsupportedOperationException(
-            env.info.getRequest().getDatabaseEngineDeployment().toString());
+        throw new UnsupportedOperationException(deployment.toString());
       }
 
       try {
@@ -1305,7 +1306,8 @@ public class TestEnvironment implements AutoCloseable {
         break;
       case RDS_MULTI_AZ_INSTANCE:
         if (!this.reuseRdsDbInstance) {
-          BlueGreenDeployment blueGreenDeployment = auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
+          BlueGreenDeployment blueGreenDeployment =
+              auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
           auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
           String old1InstanceName = this.rdsInstanceName + "-old1";
           if (auroraUtil.doesInstanceExist(old1InstanceName)) {
@@ -1317,8 +1319,8 @@ public class TestEnvironment implements AutoCloseable {
           }
         }
         break;
-        default:
-          throw new RuntimeException("Unsupported " + this.info.getRequest().getDatabaseEngineDeployment());
+      default:
+        throw new RuntimeException("Unsupported " + this.info.getRequest().getDatabaseEngineDeployment());
     }
   }
 
@@ -1351,7 +1353,8 @@ public class TestEnvironment implements AutoCloseable {
             initDatabaseParams(env);
             createDbCluster(env);
             if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM)) {
-              if (env.info.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
+              final DatabaseEngineDeployment deployment = env.info.getRequest().getDatabaseEngineDeployment();
+              if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
                 throw new RuntimeException("IAM isn't supported by " + DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER);
               }
               configureIamAccess(env);

@@ -289,6 +289,64 @@ public class AuroraTestUtility {
     }
   }
 
+  public String createMultiAzInstance() {
+
+    final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
+
+    CreateDbInstanceResponse response = rdsClient.createDBInstance(CreateDbInstanceRequest.builder()
+        .dbInstanceIdentifier(dbIdentifier)
+        .publiclyAccessible(true)
+        .dbName(dbName)
+        .masterUsername(dbUsername)
+        .masterUserPassword(dbPassword)
+        .enableIAMDatabaseAuthentication(true)
+        .multiAZ(true)
+        .engine(dbEngine)
+        .engineVersion(dbEngineVersion)
+        .dbInstanceClass(dbInstanceClass)
+        .enablePerformanceInsights(false)
+        .backupRetentionPeriod(1)
+        .storageEncrypted(true)
+        .storageType(storageType)
+        .allocatedStorage(allocatedStorage)
+        .iops(iops)
+        .tags(testRunnerTag)
+        .build());
+
+    // Wait for all instances to be up
+    final RdsWaiter waiter = rdsClient.waiter();
+    WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
+        waiter.waitUntilDBInstanceAvailable(
+            (requestBuilder) ->
+                requestBuilder.filters(
+                    Filter.builder().name("db-instance-id").values(dbIdentifier).build()),
+            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
+
+    if (waiterResponse.matched().exception().isPresent()) {
+      deleteMultiAzInstance();
+      throw new RuntimeException(
+          "Unable to start AWS RDS Instance after waiting for 30 minutes");
+    }
+
+    DescribeDbInstancesResponse dbInstancesResult = waiterResponse.matched().response().orElse(null);
+    if (dbInstancesResult == null) {
+      throw new RuntimeException("Unable to get instance details.");
+    }
+
+    final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
+    final String rdsDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
+
+    for (DBInstance instance : dbInstancesResult.dbInstances()) {
+      this.instances.add(
+          new TestInstanceInfo(
+              instance.dbInstanceIdentifier(),
+              instance.endpoint().address(),
+              instance.endpoint().port()));
+    }
+
+    return rdsDomainPrefix;
+  }
+
   /**
    * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
    *
@@ -489,64 +547,6 @@ public class AuroraTestUtility {
         instance.endpoint().port());
     this.instances.add(instanceInfo);
     return instanceInfo;
-  }
-
-  public String createMultiAzInstance() throws InterruptedException {
-
-    final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
-
-    CreateDbInstanceResponse response = rdsClient.createDBInstance(CreateDbInstanceRequest.builder()
-            .dbInstanceIdentifier(dbIdentifier)
-            .publiclyAccessible(true)
-            .dbName(dbName)
-            .masterUsername(dbUsername)
-            .masterUserPassword(dbPassword)
-            .enableIAMDatabaseAuthentication(true)
-            .multiAZ(true)
-            .engine(dbEngine)
-            .engineVersion(dbEngineVersion)
-            .dbInstanceClass(dbInstanceClass)
-            .enablePerformanceInsights(false)
-            .backupRetentionPeriod(1)
-            .storageEncrypted(true)
-            .storageType(storageType)
-            .allocatedStorage(allocatedStorage)
-            .iops(iops)
-            .tags(testRunnerTag)
-            .build());
-
-    // Wait for all instances to be up
-    final RdsWaiter waiter = rdsClient.waiter();
-    WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
-        waiter.waitUntilDBInstanceAvailable(
-            (requestBuilder) ->
-                requestBuilder.filters(
-                    Filter.builder().name("db-instance-id").values(dbIdentifier).build()),
-            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
-
-    if (waiterResponse.matched().exception().isPresent()) {
-      deleteMultiAzInstance();
-      throw new RuntimeException(
-          "Unable to start AWS RDS Instance after waiting for 30 minutes");
-    }
-
-    DescribeDbInstancesResponse dbInstancesResult = waiterResponse.matched().response().orElse(null);
-    if (dbInstancesResult == null) {
-      throw new RuntimeException("Unable to get instance details.");
-    }
-
-    final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
-    final String rdsDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
-
-    for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      this.instances.add(
-          new TestInstanceInfo(
-              instance.dbInstanceIdentifier(),
-              instance.endpoint().address(),
-              instance.endpoint().port()));
-    }
-
-    return rdsDomainPrefix;
   }
 
   /**
@@ -772,7 +772,8 @@ public class AuroraTestUtility {
       } catch (InvalidDbInstanceStateException invalidDbInstanceStateException) {
         // Instance is already being deleted.
         // ignore it
-        LOGGER.finest("MultiAz Instance " + dbIdentifier + " is already being deleted. " + invalidDbInstanceStateException);
+        LOGGER.finest("MultiAz Instance " + dbIdentifier + " is already being deleted. "
+            + invalidDbInstanceStateException);
         break;
       } catch (DbInstanceNotFoundException ex) {
         // ignore
