@@ -95,6 +95,7 @@ public class ConnectionPluginChainBuilder {
           put(AuroraInitialConnectionStrategyPluginFactory.class, 390);
           put(AuroraConnectionTrackerPluginFactory.class, 400);
           put(AuroraStaleDnsPluginFactory.class, 500);
+          put(BlueGreenConnectionPluginFactory.class, 550);
           put(ReadWriteSplittingPluginFactory.class, 600);
           put(FailoverConnectionPluginFactory.class, 700);
           put(HostMonitoringConnectionPluginFactory.class, 800);
@@ -104,7 +105,6 @@ public class ConnectionPluginChainBuilder {
           put(AwsSecretsManagerConnectionPluginFactory.class, 1100);
           put(FederatedAuthPluginFactory.class, 1200);
           put(LogQueryConnectionPluginFactory.class, 1300);
-          put(BlueGreenConnectionPluginFactory.class, 1400);
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(DeveloperConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);

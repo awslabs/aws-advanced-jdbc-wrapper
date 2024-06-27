@@ -17,23 +17,36 @@
 package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
 
 public class ConnectionStringHostListProvider implements StaticHostListProvider {
+
+  public static final AwsWrapperProperty SINGLE_WRITER_CONNECTION_STRING =
+      new AwsWrapperProperty(
+          "singleWriterConnectionString",
+          "false",
+          "Set to true if you are providing a connection string with multiple comma-delimited hosts and your "
+              + "cluster has only one writer. The writer must be the first host in the connection string");
+
+  public static final AwsWrapperProperty CLUSTER_ID = new AwsWrapperProperty(
+      "clusterId", "",
+      "A unique identifier for the cluster. "
+          + "Connections with the same cluster id share a cluster topology cache. "
+          + "If unspecified, a cluster id is automatically created for AWS RDS clusters.");
 
   final List<HostSpec> hostList = new ArrayList<>();
   Properties properties;
@@ -42,13 +55,13 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   private final ConnectionUrlParser connectionUrlParser;
   private final String initialUrl;
   private final HostListProviderService hostListProviderService;
+  private final String clusterId;
 
-  public static final AwsWrapperProperty SINGLE_WRITER_CONNECTION_STRING =
-      new AwsWrapperProperty(
-          "singleWriterConnectionString",
-          "false",
-          "Set to true if you are providing a connection string with multiple comma-delimited hosts and your "
-              + "cluster has only one writer. The writer must be the first host in the connection string");
+  private final RdsUtils rdsUtils = new RdsUtils();
+
+  static {
+    PropertyDefinition.registerPluginProperties(ConnectionStringHostListProvider.class);
+  }
 
   public ConnectionStringHostListProvider(
       final @NonNull Properties properties,
@@ -67,6 +80,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
     this.initialUrl = initialUrl;
     this.connectionUrlParser = connectionUrlParser;
     this.hostListProviderService = hostListProviderService;
+    this.clusterId = CLUSTER_ID.getString(properties);
   }
 
   private void init() throws SQLException {
@@ -121,6 +135,15 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
 
   @Override
   public String getClusterId() {
-    return null;
+    if (!StringUtils.isNullOrEmpty(this.clusterId)) {
+      return this.clusterId;
+    }
+
+    final HostSpec hostSpec = this.hostListProviderService.getInitialConnectionHostSpec();
+    if (hostSpec == null) {
+      return null;
+    }
+
+    return this.rdsUtils.removeGreenInstancePrefix(hostSpec.getHost());
   }
 }

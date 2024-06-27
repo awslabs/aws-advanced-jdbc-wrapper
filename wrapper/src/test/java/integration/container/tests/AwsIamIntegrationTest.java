@@ -64,7 +64,6 @@ import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @Order(3)
-@Disabled
 // MariaDb driver has no configuration parameters to force using 'mysql_clear_password'
 // authentication that is essential for IAM. A proper user name and IAM token are passed to MariaDb
 // driver however 'mysql_native_password' authentication is chosen by default.
@@ -237,7 +236,7 @@ public class AwsIamIntegrationTest {
   void test_AwsIam_UserAndPasswordPropertiesArePreserved() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setServerName(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
+    ds.setServerName(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost());
     ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
@@ -259,7 +258,7 @@ public class AwsIamIntegrationTest {
         initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
 
     final HostSpec hostSpec = new HostSpecBuilder(mockHostAvailabilityStrategy)
-        .host(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())
+        .host(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost())
         .build();
 
     final AwsCredentialsProvider credentialsProvider = AwsCredentialsManager.getProvider(hostSpec, awsIamProp);
@@ -267,15 +266,15 @@ public class AwsIamIntegrationTest {
     final String regularToken = new RegularRdsUtility().generateAuthenticationToken(
         credentialsProvider,
         Region.of(TestEnvironment.getCurrent().getInfo().getRegion()),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstanceEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getIamUsername());
 
     final String lightToken = new LightRdsUtility().generateAuthenticationToken(
         credentialsProvider,
         Region.of(TestEnvironment.getCurrent().getInfo().getRegion()),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstanceEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getIamUsername());
 
     assertEquals(regularToken, lightToken);
