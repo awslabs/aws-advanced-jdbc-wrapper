@@ -687,4 +687,9 @@ public class RdsHostListProvider implements DynamicHostListProvider {
 
     throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"));
   }
+
+  @Override
+  public String getClusterId() throws UnsupportedOperationException {
+    return this.clusterId;
+  }
 }
