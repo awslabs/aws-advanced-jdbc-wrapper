@@ -326,12 +326,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         try {
           switchToReaderConnection(hosts);
         } catch (final SQLException e) {
-          LOGGER.log(Level.FINEST, "Exception:", e);
           if (!isConnectionUsable(currentConnection)) {
             logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader"),
                 SqlState.CONNECTION_UNABLE_TO_CONNECT, e);
             return;
           }
+
+          LOGGER.log(Level.FINEST, "Exception while switching to a reader.", e);
 
           // Failed to switch to a reader; use writer as a fallback
           LOGGER.warning(() -> Messages.get(
