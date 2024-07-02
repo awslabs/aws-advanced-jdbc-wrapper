@@ -41,6 +41,7 @@ import integration.container.ProxyHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
+import integration.container.aurora.TestPluginServiceImpl;
 import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
@@ -73,8 +74,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.ExponentialBackoffHostAvailabilityStrategy;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
@@ -539,16 +542,8 @@ public class ReadWriteSplittingTests {
       LOGGER.finest(String.format("%s -> %s", info.getHost(), InetAddress.getByName(info.getHost()).getHostAddress()));
     }
 
-    final Properties props = getProxiedPropsWithFailover();
-    props.setProperty(
-        HostAvailabilityStrategyFactory.DEFAULT_HOST_AVAILABILITY_STRATEGY.name,
-        ExponentialBackoffHostAvailabilityStrategy.NAME);
-    props.setProperty(
-        HostAvailabilityStrategyFactory.HOST_AVAILABILITY_STRATEGY_INITIAL_BACKOFF_TIME.name,
-        "15");
-
     try (final Connection conn =
-             DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), props)) {
+             DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), getProxiedPropsWithFailover())) {
 
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.finest("writerConnectionId=" + writerConnectionId);
@@ -583,20 +578,13 @@ public class ReadWriteSplittingTests {
 
       ProxyHelper.enableAllConnectivity();
 
-      // During failover all unavailable readers were marked as UNAVAILABLE.
-      // The next statement will try to internally switch to a reader however it fails since no readers available.
-      // So expected connection should remain a writer connection.
-      conn.setReadOnly(true);
-      currentConnectionId = auroraUtil.queryInstanceId(conn);
-      LOGGER.finest("currentConnectionId=" + currentConnectionId);
-      assertEquals(writerConnectionId, currentConnectionId);
+      // During failover above some of readers have been tried to connect to and failed since they were not
+      // available. We should expect that some of readers in topology are marked as UNAVAILABLE.
+      // The following code reset node availability and make them AVAILABLE.
+      // That is important for further steps.
+      TestPluginServiceImpl.clearHostAvailabilityCache();
+      conn.unwrap(PluginService.class).getHosts().forEach(node -> node.setAvailability(HostAvailability.AVAILABLE));
 
-      TimeUnit.SECONDS.sleep(16); // a bit longer than 15s
-
-      // Since the connection is configured to use an ExponentialBackoffHostAvailabilityStrategy, after 15s
-      // (corresponds to configuration parameter "hostAvailabilityStrategyInitialBackoffTime=15" in connection
-      // properties) readers get available back again.
-      // This time, an expected connection is a reader.
       conn.setReadOnly(true);
       currentConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.finest("currentConnectionId=" + currentConnectionId);
